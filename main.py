@@ -1,23 +1,25 @@
 import json
 import uuid
 import logging
+import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
-from google import genai
+from google import genai  # Using the new Google GenAI SDK
 import fitz  # PyMuPDF
-import os
-import google.generativeai as genai
+
+# Setup Logging
+logger = logging.getLogger("quiz_api")
+logging.basicConfig(level=logging.INFO)
 
 # Fetch the API key from Render's environment variables
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
+if not gemini_api_key:
+    logger.warning("GEMINI_API_KEY environment variable is not set!")
 
-# Pass it to the client
+# Initialize the Gemini Client safely
 ai_client = genai.Client(api_key=gemini_api_key)
-
-logger = logging.getLogger("quiz_api")
-logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="PDF Quiz Generator API")
 
@@ -25,25 +27,23 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://front-end-omega-swart.vercel.app"  # <-- update to your actual frontend URL
+        "https://front-end-omega-swart.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Hardcoded credentials ---
+# --- Supabase Setup ---
 SUPABASE_URL = "https://gftrjvljhtqkercsiskp.supabase.co"
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmdHJqdmxqaHRxa2VyY3Npc2twIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDYxNDg1NSwiZXhwIjoyMTAwMTkwODU1fQ.H-nhZDjYMAhJ-bda1YOdocZAXjFFZJ7jOxAADEiO8G0"
 
-
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 BUCKET_NAME = "resources"
 MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
 MAX_CHARS = 400_000
-MODEL_NAME = "gemini-3.1-flash-lite"  # confirm this model name is valid for your key
+MODEL_NAME = "gemini-2.5-flash"  # Standard stable flash model name
 
 
 @app.get("/")
@@ -111,7 +111,6 @@ def upload_pdf(file: UploadFile = File(...)):
 
 @app.get("/api/documents")
 def list_documents():
-    """Returns all uploaded PDFs so the frontend can show a selection list."""
     try:
         result = (
             supabase.table("documents")
@@ -130,8 +129,6 @@ class QuizRequest(BaseModel):
     num_questions: int = 5
 
 
-
-@app.post("/api/quiz")
 @app.post("/api/quiz")
 def generate_quiz(payload: QuizRequest):
     try:
@@ -176,14 +173,13 @@ def generate_quiz(payload: QuizRequest):
         {{
           "question": "...",
           "options": ["...", "...", "...", "..."],
-          "correct_answer_index": 0
+          "correct_answer_index": 0,
           "explanation": "Brief explanation derived from the document."
         }}
       ]
     }}
     """
 
-    # Step 1: call Gemini, and surface the real error if this fails
     try:
         response = ai_client.models.generate_content(
             model=MODEL_NAME,
@@ -193,7 +189,6 @@ def generate_quiz(payload: QuizRequest):
         logger.exception("Gemini API call failed")
         raise HTTPException(status_code=502, detail=f"Gemini API call failed: {str(e)}")
 
-    # Step 2: parse the response, and surface the raw text if this fails
     try:
         raw_text = response.text.strip()
         if raw_text.startswith("```"):
@@ -202,10 +197,7 @@ def generate_quiz(payload: QuizRequest):
                 raw_text = raw_text[4:].strip()
         quiz_data = json.loads(raw_text)
     except Exception as e:
-        logger.exception("Could not parse AI output")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not parse AI output. Error: {str(e)}. Raw: {response.text[:200]}"
-        )
+        logger.exception("Failed to parse Gemini response as JSON")
+        raise HTTPException(status_code=500, detail="Failed to generate a valid quiz. The AI returned an invalid format.")
 
-    return {"success": True, "filename": filename, "quiz": quiz_data["quiz"]}
+    return quiz_data
