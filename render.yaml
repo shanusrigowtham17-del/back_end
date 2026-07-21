@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pdf-course-api
+    env: python
+    plan: free
+    # Lock the environment to stable Python 3.10
+    pythonVersion: 3.10.0
+    buildCommand: pip install --only-binary :all: -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
