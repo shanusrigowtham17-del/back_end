@@ -32,7 +32,7 @@ GEMINI_API_KEY = "AQ.Ab8RN6LBx_KO9ZaCel-QNghVY67OGg8xdcSbR6ntO2vfTXPkbA"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-BUCKET_NAME = "pdfs"
+BUCKET_NAME = "resources"
 MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
 MAX_CHARS = 400_000
 MODEL_NAME = "gemini-3.1-flash-lite"  # confirm this model name is valid for your key
