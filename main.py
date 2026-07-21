@@ -43,7 +43,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 BUCKET_NAME = "resources"
 MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
 MAX_CHARS = 400_000
-MODEL_NAME = "gemini-2.5-flash"  # Standard stable flash model name
+MODEL_NAME = "gemini-3.1-flash-lite"  # Standard stable flash model name
 
 
 @app.get("/")
