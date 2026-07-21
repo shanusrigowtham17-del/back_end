@@ -7,6 +7,14 @@ from pydantic import BaseModel
 from supabase import create_client, Client
 from google import genai
 import fitz  # PyMuPDF
+import os
+import google.generativeai as genai
+
+# Fetch the API key from Render's environment variables
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+
+# Pass it to the client
+ai_client = genai.Client(api_key=gemini_api_key)
 
 logger = logging.getLogger("quiz_api")
 logging.basicConfig(level=logging.INFO)
