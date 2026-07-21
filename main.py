@@ -122,6 +122,7 @@ class QuizRequest(BaseModel):
     num_questions: int = 5
 
 
+
 @app.post("/api/quiz")
 def generate_quiz(payload: QuizRequest):
     """Generates a multiple-choice quiz from a previously uploaded PDF."""
@@ -163,14 +164,30 @@ Respond ONLY with valid JSON, no other text, no Markdown code fences, in exactly
         )
         raw_text = response.text.strip()
 
+        # --- BULLETPROOF JSON CLEANING BLOCK ---
+        # Strip markdown syntax formatting blocks if they exist
         if raw_text.startswith("```"):
-            raw_text = raw_text.strip("`")
-            if raw_text.lower().startswith("json"):
-                raw_text = raw_text[4:].strip()
+            # Remove leading fence line
+            lines = raw_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            # Remove trailing fence line
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            raw_text = "\n".join(lines).strip()
+            
+        # Strip inline remnants if any
+        raw_text = raw_text.strip("`").strip()
+        if raw_text.lower().startswith("json"):
+            raw_text = raw_text[4:].strip()
+        # --------------------------------------
 
         quiz_data = json.loads(raw_text)
-    except Exception:
+    except Exception as e:
         logger.exception("Quiz generation failed")
-        raise HTTPException(status_code=502, detail="Could not generate a quiz. Please try again.")
+        raise HTTPException(
+            status_code=502, 
+            detail=f"Could not parse AI output. Error: {str(e)}. Raw: {response.text[:100]}"
+        )
 
     return {"success": True, "filename": filename, "quiz": quiz_data["quiz"]}
