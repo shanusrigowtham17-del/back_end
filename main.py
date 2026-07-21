@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # --- Hardcoded credentials ---
-SUPABASE_URL = "https://gftrjvljhtqkercsiskp.supabase.co/rest/v1/"
+SUPABASE_URL = "https://gftrjvljhtqkercsiskp.supabase.co"
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmdHJqdmxqaHRxa2VyY3Npc2twIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDYxNDg1NSwiZXhwIjoyMTAwMTkwODU1fQ.H-nhZDjYMAhJ-bda1YOdocZAXjFFZJ7jOxAADEiO8G0"
 GEMINI_API_KEY = "AQ.Ab8RN6LBx_KO9ZaCel-QNghVY67OGg8xdcSbR6ntO2vfTXPkbA"
 
