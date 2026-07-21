@@ -124,8 +124,8 @@ class QuizRequest(BaseModel):
 
 
 @app.post("/api/quiz")
+@app.post("/api/quiz")
 def generate_quiz(payload: QuizRequest):
-    """Generates a multiple-choice quiz from a previously uploaded PDF."""
     try:
         result = (
             supabase.table("documents")
@@ -140,54 +140,64 @@ def generate_quiz(payload: QuizRequest):
         raise HTTPException(status_code=404, detail="Document not found.")
 
     prompt = f"""
-Based on the document below, create exactly {payload.num_questions} multiple-choice quiz questions to test understanding of the material.
-
-DOCUMENT:
-{doc_text[:MAX_CHARS]}
-
-Respond ONLY with valid JSON, no other text, no Markdown code fences, in exactly this structure:
-{{
-  "quiz": [
+    You are an expert instructional designer, assessment specialist, and subject-matter evaluator. Your task is to transform the provided document into a high-quality assessment that accurately measures comprehension, reasoning, and knowledge retention.
+    Instructions:
+    Analyze the entire document to identify its core concepts, key facts, definitions, relationships, processes, formulas, examples, and important insights.
+    Generate exactly {payload.num_questions} multiple-choice questions (MCQs) based only on the information contained in the document.
+    Ensure comprehensive coverage by distributing questions across all major topics in proportion to their importance.
+    Prioritize conceptual understanding over simple memorization wherever possible.
+    Include a balanced mix of:
+    Recall-based questions
+    Conceptual understanding
+    Application and scenario-based questions
+    Analytical and inference-based questions (when supported by the document)
+    Avoid duplicate, ambiguous, trivial, or overly similar questions.
+    Every question must have exactly four answer choices (A–D) with only one correct answer.
+    Generate plausible distractors that are contextually relevant and challenging without being misleading.
+    Do not introduce information, assumptions, or external knowledge that is not explicitly supported by the document.
+    If the document contains numerical values, formulas, procedures, or sequences, create appropriate application questions while remaining faithful to the source.
+    Randomize the position of the correct answer across options A–D to avoid predictable patterns.
+    Ensure questions are grammatically correct, concise, and unambiguous.
+    Maintain consistent terminology used in the document.
+    DOCUMENT:
+    {doc_text[:MAX_CHARS]}
+    
+    Respond ONLY with valid JSON, no other text, no Markdown code fences, in exactly this structure:
     {{
-      "question": "...",
-      "options": ["...", "...", "...", "..."],
-      "correct_answer_index": 0
+      "quiz": [
+        {{
+          "question": "...",
+          "options": ["...", "...", "...", "..."],
+          "correct_answer_index": 0
+          "explanation": "Brief explanation derived from the document."
+        }}
+      ]
     }}
-  ]
-}}
-"""
+    """
 
+    # Step 1: call Gemini, and surface the real error if this fails
     try:
         response = ai_client.models.generate_content(
             model=MODEL_NAME,
             contents=prompt,
         )
+    except Exception as e:
+        logger.exception("Gemini API call failed")
+        raise HTTPException(status_code=502, detail=f"Gemini API call failed: {str(e)}")
+
+    # Step 2: parse the response, and surface the raw text if this fails
+    try:
         raw_text = response.text.strip()
-
-        # --- BULLETPROOF JSON CLEANING BLOCK ---
-        # Strip markdown syntax formatting blocks if they exist
         if raw_text.startswith("```"):
-            # Remove leading fence line
-            lines = raw_text.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            # Remove trailing fence line
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            raw_text = "\n".join(lines).strip()
-            
-        # Strip inline remnants if any
-        raw_text = raw_text.strip("`").strip()
-        if raw_text.lower().startswith("json"):
-            raw_text = raw_text[4:].strip()
-        # --------------------------------------
-
+            raw_text = raw_text.strip("`")
+            if raw_text.lower().startswith("json"):
+                raw_text = raw_text[4:].strip()
         quiz_data = json.loads(raw_text)
     except Exception as e:
-        logger.exception("Quiz generation failed")
+        logger.exception("Could not parse AI output")
         raise HTTPException(
-            status_code=502, 
-            detail=f"Could not parse AI output. Error: {str(e)}. Raw: {response.text[:100]}"
+            status_code=502,
+            detail=f"Could not parse AI output. Error: {str(e)}. Raw: {response.text[:200]}"
         )
 
     return {"success": True, "filename": filename, "quiz": quiz_data["quiz"]}
