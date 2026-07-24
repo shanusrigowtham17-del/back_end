@@ -6,19 +6,19 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
-from google import genai  # Using the new Google GenAI SDK
-import fitz  # PyMuPDF
+from google import genai  
+import fitz  
 
-# Setup Logging
+
 logger = logging.getLogger("quiz_api")
 logging.basicConfig(level=logging.INFO)
 
-# Fetch the API key from Render's environment variables
+
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 if not gemini_api_key:
     logger.warning("GEMINI_API_KEY environment variable is not set!")
 
-# Initialize the Gemini Client safely
+
 ai_client = genai.Client(api_key=gemini_api_key)
 
 app = FastAPI(title="PDF Quiz Generator API")
@@ -34,16 +34,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Supabase Setup ---
+
 SUPABASE_URL = "https://gftrjvljhtqkercsiskp.supabase.co"
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmdHJqdmxqaHRxa2VyY3Npc2twIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDYxNDg1NSwiZXhwIjoyMTAwMTkwODU1fQ.H-nhZDjYMAhJ-bda1YOdocZAXjFFZJ7jOxAADEiO8G0"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 BUCKET_NAME = "resources"
-MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
+MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  
 MAX_CHARS = 400_000
-MODEL_NAME = "gemini-3.1-flash-lite"  # Standard stable flash model name
+MODEL_NAME = "gemini-3.1-flash-lite"  
 
 
 @app.get("/")
